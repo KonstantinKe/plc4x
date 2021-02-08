@@ -26,8 +26,6 @@ import org.apache.plc4x.java.spi.Plc4xProtocolBase;
 import org.apache.plc4x.java.spi.context.DriverContext;
 import org.apache.plc4x.java.spi.messages.DefaultPlcReadResponse;
 import org.apache.plc4x.java.spi.messages.DefaultPlcWriteResponse;
-import org.apache.plc4x.java.spi.messages.InternalPlcReadRequest;
-import org.apache.plc4x.java.spi.messages.InternalPlcWriteRequest;
 import org.apache.plc4x.java.spi.messages.utils.ResponseItem;
 
 import java.util.*;
@@ -49,15 +47,16 @@ public abstract class BaseOptimizer {
             for (String fieldName : curRequest.getFieldNames()) {
                 if (readResponse.isLeft()) {
                     PlcReadResponse subReadResponse = (PlcReadResponse) readResponse.getLeft();
-                    fields.put(fieldName,
-                        new ResponseItem<>(subReadResponse.getResponseCode(fieldName),
-                            subReadResponse.getAsPlcValue().getValue(fieldName)));
+                    PlcResponseCode responseCode = subReadResponse.getResponseCode(fieldName);
+                    PlcValue value = (responseCode == PlcResponseCode.OK) ?
+                        subReadResponse.getAsPlcValue().getValue(fieldName) : null;
+                    fields.put(fieldName, new ResponseItem<>(responseCode, value));
                 } else {
                     fields.put(fieldName, new ResponseItem<>(PlcResponseCode.INTERNAL_ERROR, null));
                 }
             }
         }
-        return new DefaultPlcReadResponse((InternalPlcReadRequest) readRequest, fields);
+        return new DefaultPlcReadResponse(readRequest, fields);
     }
 
     protected List<PlcRequest> processWriteRequest(PlcWriteRequest writeRequest, DriverContext driverContext) {
@@ -68,8 +67,9 @@ public abstract class BaseOptimizer {
                                                      Map<PlcRequest, Either<PlcResponse, Exception>> writeResponses) {
         Map<String, PlcResponseCode> fields = new HashMap<>();
         for (Map.Entry<PlcRequest, Either<PlcResponse, Exception>> requestsEntries : writeResponses.entrySet()) {
+            PlcWriteRequest subWriteRequest = (PlcWriteRequest) requestsEntries.getKey();
             Either<PlcResponse, Exception> writeResponse = requestsEntries.getValue();
-            for (String fieldName : writeRequest.getFieldNames()) {
+            for (String fieldName : subWriteRequest.getFieldNames()) {
                 if (writeResponse.isLeft()) {
                     PlcWriteResponse subWriteResponse = (PlcWriteResponse) writeResponse.getLeft();
                     fields.put(fieldName, subWriteResponse.getResponseCode(fieldName));
@@ -78,7 +78,7 @@ public abstract class BaseOptimizer {
                 }
             }
         }
-        return new DefaultPlcWriteResponse((InternalPlcWriteRequest) writeRequest, fields);
+        return new DefaultPlcWriteResponse(writeRequest, fields);
     }
 
     protected List<PlcRequest> processSubscriptionRequest(PlcSubscriptionRequest subscriptionRequest,
@@ -152,7 +152,10 @@ public abstract class BaseOptimizer {
             }
 
             // As soon as all sub-futures are done, merge the individual responses back to one big response.
-            CompletableFuture.allOf(subFutures.values().toArray(new CompletableFuture[0])).thenApply(aVoid -> {
+            CompletableFuture.allOf(subFutures.values().toArray(new CompletableFuture[0])).handle((aVoid, t) -> {
+                if (t != null) {
+                    parentFuture.completeExceptionally(t);
+                }
                 Map<PlcRequest, Either<PlcResponse, Exception>> results = new HashMap<>();
                 for (Map.Entry<PlcRequest, CompletableFuture<PlcResponse>> subFutureEntry : subFutures.entrySet()) {
                     PlcRequest subRequest = subFutureEntry.getKey();
@@ -163,13 +166,17 @@ public abstract class BaseOptimizer {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         results.put(subRequest, Either.right(new Exception("Something went wrong")));
-                    } catch (ExecutionException e) {
+                    } catch (Exception e) {
                         results.put(subRequest, Either.right(new Exception("Something went wrong")));
                     }
                 }
                 PlcResponse response = responseProcessor.apply(results);
                 parentFuture.complete(response);
                 return Void.TYPE;
+            }).exceptionally(throwable -> {
+                // TODO: If would be cool if we could still process all of the successful ones ...
+                parentFuture.completeExceptionally(throwable);
+                return null;
             });
             return parentFuture;
         } else {

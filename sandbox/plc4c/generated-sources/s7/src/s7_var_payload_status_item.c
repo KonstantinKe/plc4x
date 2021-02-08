@@ -17,8 +17,56 @@
   under the License.
 */
 
-#include <plc4c/spi/read_buffer.h>
-#include <plc4c/spi/write_buffer.h>
-
+#include <stdio.h>
+#include <plc4c/spi/evaluation_helper.h>
 #include "s7_var_payload_status_item.h"
+
+
+// Parse function.
+plc4c_return_code plc4c_s7_read_write_s7_var_payload_status_item_parse(plc4c_spi_read_buffer* io, plc4c_s7_read_write_s7_var_payload_status_item** _message) {
+  uint16_t startPos = plc4c_spi_read_get_pos(io);
+  uint16_t curPos;
+  plc4c_return_code _res = OK;
+
+  // Allocate enough memory to contain this data structure.
+  (*_message) = malloc(sizeof(plc4c_s7_read_write_s7_var_payload_status_item));
+  if(*_message == NULL) {
+    return NO_MEMORY;
+  }
+
+  // Enum field (returnCode)
+  plc4c_s7_read_write_data_transport_error_code returnCode = plc4c_s7_read_write_data_transport_error_code_null();
+  _res = plc4c_spi_read_unsigned_byte(io, 8, (uint8_t*) &returnCode);
+  if(_res != OK) {
+    return _res;
+  }
+  (*_message)->return_code = returnCode;
+
+  return OK;
+}
+
+plc4c_return_code plc4c_s7_read_write_s7_var_payload_status_item_serialize(plc4c_spi_write_buffer* io, plc4c_s7_read_write_s7_var_payload_status_item* _message) {
+  plc4c_return_code _res = OK;
+
+  // Enum field (returnCode)
+  _res = plc4c_spi_write_unsigned_byte(io, 8, _message->return_code);
+  if(_res != OK) {
+    return _res;
+  }
+
+  return OK;
+}
+
+uint16_t plc4c_s7_read_write_s7_var_payload_status_item_length_in_bytes(plc4c_s7_read_write_s7_var_payload_status_item* _message) {
+  return plc4c_s7_read_write_s7_var_payload_status_item_length_in_bits(_message) / 8;
+}
+
+uint16_t plc4c_s7_read_write_s7_var_payload_status_item_length_in_bits(plc4c_s7_read_write_s7_var_payload_status_item* _message) {
+  uint16_t lengthInBits = 0;
+
+  // Enum Field (returnCode)
+  lengthInBits += 8;
+
+  return lengthInBits;
+}
 

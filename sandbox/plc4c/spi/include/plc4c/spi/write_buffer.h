@@ -24,55 +24,64 @@
 #include <plc4c/types.h>
 
 struct plc4c_spi_write_buffer {
-
+  // Pointer to the data itself
+  uint8_t* data;
+  // Total size of the data array.
+  uint16_t length;
+  // Current full byte position
+  uint16_t curPosByte;
+  // Current bit-position inside the current byte
+  unsigned int curPosBit : 4;
 };
-typedef struct plc4c_spi_v plc4c_spi_write_buffer;
+typedef struct plc4c_spi_write_buffer plc4c_spi_write_buffer;
+
+plc4c_return_code plc4c_spi_write_buffer_create(uint16_t length, plc4c_spi_write_buffer** buffer);
+
+void plc4c_spi_write_buffer_destroy(plc4c_spi_write_buffer* buffer);
 
 uint8_t* plc4c_spi_write_get_data(plc4c_spi_write_buffer* buf);
 
 uint32_t plc4c_spi_write_get_pos(plc4c_spi_write_buffer* buf);
 
-uint8_t* plc4c_spi_write_get_bytes(plc4c_spi_write_buffer* buf, uint32_t start_pos_in_bytes, uint32_t end_pos_in_bytes);
+plc4c_return_code plc4c_spi_write_get_bytes(plc4c_spi_write_buffer* buf, uint16_t start_pos_in_bytes, uint16_t end_pos_in_bytes, uint8_t** dest);
 
-uint8_t plc4c_spi_write_peek_byte(plc4c_spi_write_buffer* buf, uint32_t offset_in_bytes);
-
-void plc4c_spi_write_bit(plc4c_spi_write_buffer* buf, bool value);
+plc4c_return_code plc4c_spi_write_bit(plc4c_spi_write_buffer* buf, bool value);
 
 // Unsigned Integers ...
 
-void plc4c_spi_write_unsigned_byte(plc4c_spi_write_buffer* buf, uint8_t num_bits, uint8_t value);
+plc4c_return_code plc4c_spi_write_unsigned_byte(plc4c_spi_write_buffer* buf, uint8_t num_bits, uint8_t value);
 
-void plc4c_spi_write_unsigned_short(plc4c_spi_write_buffer* buf, uint8_t num_bits, uint16_t value);
+plc4c_return_code plc4c_spi_write_unsigned_short(plc4c_spi_write_buffer* buf, uint8_t num_bits, uint16_t value);
 
-void plc4c_spi_write_unsigned_int(plc4c_spi_write_buffer* buf, uint8_t num_bits, uint32_t value);
+plc4c_return_code plc4c_spi_write_unsigned_int(plc4c_spi_write_buffer* buf, uint8_t num_bits, uint32_t value);
 
-void plc4c_spi_write_unsigned_long(plc4c_spi_write_buffer* buf, uint8_t num_bits, uint64_t value);
+plc4c_return_code plc4c_spi_write_unsigned_long(plc4c_spi_write_buffer* buf, uint8_t num_bits, uint64_t value);
 
 // TODO: Not sure which type to use in this case ...
 //void plc4c_spi_write_unsigned_big_integer(plc4c_spi_write_buffer* buf, uint8_t num_bits, uint128_t value);
 
 // Signed Integers ...
 
-void plc4c_spi_write_byte(plc4c_spi_write_buffer* buf, uint8_t num_bits, int8_t value);
+plc4c_return_code plc4c_spi_write_signed_byte(plc4c_spi_write_buffer* buf, uint8_t num_bits, int8_t value);
 
-void plc4c_spi_write_short(plc4c_spi_write_buffer* buf, uint8_t num_bits, int16_t value);
+plc4c_return_code plc4c_spi_write_signed_short(plc4c_spi_write_buffer* buf, uint8_t num_bits, int16_t value);
 
-void plc4c_spi_write_int(plc4c_spi_write_buffer* buf, uint8_t num_bits, int32_t value);
+plc4c_return_code plc4c_spi_write_signed_int(plc4c_spi_write_buffer* buf, uint8_t num_bits, int32_t value);
 
-void plc4c_spi_write_long(plc4c_spi_write_buffer* buf, uint8_t num_bits, int64_t value);
+plc4c_return_code plc4c_spi_write_signed_long(plc4c_spi_write_buffer* buf, uint8_t num_bits, int64_t value);
 
 // TODO: Not sure which type to use in this case ...
-//void plc4c_spi_write_big_integer(plc4c_spi_write_buffer* buf, uint8_t num_bits, int128_t);
+//plc4c_return_code plc4c_spi_write_signed_big_integer(plc4c_spi_write_buffer* buf, uint8_t num_bits, int128_t);
 
 // Floating Point Numbers ...
 
-void plc4c_spi_write_float(plc4c_spi_write_buffer* buf, uint8_t num_bits, float value);
+plc4c_return_code plc4c_spi_write_float(plc4c_spi_write_buffer* buf, uint8_t num_bits, float value);
 
-void plc4c_spi_write_double(plc4c_spi_write_buffer* buf, uint8_t num_bits, double value);
+plc4c_return_code plc4c_spi_write_double(plc4c_spi_write_buffer* buf, uint8_t num_bits, double value);
 
 // TODO: Not sure which type to use in this case ...
-//void plc4c_spi_write_big_decimal(plc4c_spi_write_buffer* buf, uint8_t num_bits, doubledouble value);
+//plc4c_return_code plc4c_spi_write_big_decimal(plc4c_spi_write_buffer* buf, uint8_t num_bits, doubledouble value);
 
-void plc4c_spi_write_string(plc4c_spi_write_buffer* buf, uint8_t num_bits, char* encoding, char* value);
+plc4c_return_code plc4c_spi_write_string(plc4c_spi_write_buffer* buf, uint8_t num_bits, char* encoding, char* value);
 
 #endif  // PLC4C_WRITE_BUFFER_H_
