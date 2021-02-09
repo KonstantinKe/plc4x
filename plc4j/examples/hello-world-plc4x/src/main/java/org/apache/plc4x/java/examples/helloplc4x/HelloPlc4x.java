@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.plc4x.java.utils.connectionpool2.CachedDriverManager; //added
+
 public class HelloPlc4x {
 
     private static final Logger logger = LoggerFactory.getLogger(HelloPlc4x.class);
@@ -46,53 +48,33 @@ public class HelloPlc4x {
             // Could not parse.
             System.exit(1);
         }
+        String connectionString = options.getConnectionString();
+        PlcDriverManager manager = new PlcDriverManager();
+        PlcDriverManager cached = new CachedDriverManager(connectionString,() -> manager.getConnection(connectionString));
 
-        // Establish a connection to the plc using the url provided as first argument
-        try (PlcConnection plcConnection = new PlcDriverManager().getConnection(options.getConnectionString())) {
+         //i defines how often value is retreived
+        for (int i = 0; i < 10000; i++) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(500);
+                try (PlcConnection conn = cached.getConnection(connectionString)) {
+                    if (conn.isConnected()){
+                        PlcReadRequest.Builder builder = conn.readRequestBuilder();
 
-            // Check if this connection support reading of data.
-            if (!plcConnection.getMetadata().canRead()) {
-                logger.error("This connection doesn't support reading.");
-                return;
-            }
+                        for (int k = 0; k < options.getFieldAddress().length; k++) {
+                            builder.addItem("value-" + options.getFieldAddress()[k], options.getFieldAddress()[k]);
+                        };
 
-            // Create a new read request:
-            // - Give the single item requested the alias name "value"
-            PlcReadRequest.Builder builder = plcConnection.readRequestBuilder();
-            for (int i = 0; i < options.getFieldAddress().length; i++) {
-                builder.addItem("value-" + options.getFieldAddress()[i], options.getFieldAddress()[i]);
-            }
-            PlcReadRequest readRequest = builder.build();
-
-            //////////////////////////////////////////////////////////
-            // Read synchronously ...
-            // NOTICE: the ".get()" immediately lets this thread pause until
-            // the response is processed and available.
-            logger.info("Synchronous request ...");
-            PlcReadResponse syncResponse = readRequest.execute().get();
-            // Simply iterating over the field names returned in the response.
-            printResponse(syncResponse);
-
-            /*PlcValue asPlcValue = syncResponse.getAsPlcValue();
-            System.out.println(asPlcValue.toString());*/
-
-            //////////////////////////////////////////////////////////
-            // Read asynchronously ...
-            // Register a callback executed as soon as a response arrives.
-            /*logger.info("Asynchronous request ...");
-            CompletionStage<? extends PlcReadResponse> asyncResponse = readRequest.execute();
-            asyncResponse.whenComplete((readResponse, throwable) -> {
-                if (readResponse != null) {
-                    printResponse(readResponse);
-                } else {
-                    logger.error("An error occurred: " + throwable.getMessage(), throwable);
+                        PlcReadRequest readRequest = builder.build();
+                        PlcReadResponse syncResponse = readRequest.execute().get(2000, TimeUnit.MILLISECONDS);
+                        printResponse(syncResponse);
+                    } else {
+                        logger.info("PLC is not connected, let's try again to connect");
+                        conn.connect();
+                    }
                 }
-            });*/
-
-            // Give the async request a little time...
-            TimeUnit.MILLISECONDS.sleep(1000);
-        } catch (Exception e) {
+            } catch (Exception e) {
             e.printStackTrace();
+        }
         }
         System.exit(0);
     }
